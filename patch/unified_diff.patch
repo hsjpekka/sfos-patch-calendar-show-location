@@ -1,0 +1,45 @@
+--- /usr/lib/qt5/qml/Sailfish/Calendar/CalendarEventView.qml
++++ /usr/lib/qt5/qml/Sailfish/Calendar/CalendarEventView.qml
+@@ -3,7 +3,8 @@
+ import Sailfish.TextLinking 1.0
+ import org.nemomobile.calendar 1.0
+ import Sailfish.Calendar 1.0 as Calendar
+-import org.nemomobile.notifications 1.0 as SystemNotifications
++import org.nemomobile.notifications 1.0 as SystemNotifications
++import Nemo.Configuration 1.0 // patch calendar-show-location
+ 
+ Column {
+     id: root
+@@ -170,11 +171,29 @@
+                 x: locationIcon.width
+                 anchors.top: lineCount > 1 ? parent.top : undefined
+                 anchors.verticalCenter: lineCount > 1 ? undefined : locationIcon.verticalCenter
+-                color: Theme.highlightColor
+-                font.pixelSize: Theme.fontSizeSmall
++                color: Theme.primaryColor // ==> patch calendar-show-location // Theme.highlightColor
++                //font.pixelSize: Theme.fontSizeSmall // ==> patch calendar-show-location
+                 wrapMode: Text.WordWrap
+                 text: root.event ? root.event.location : ""
+-            }
++            }
++
++            // ==> patch calendar-show-location
++
++            ConfigurationValue {
++                id: showLocationUrl
++                key: "/apps/patchmanager/show-event-location/url"
++                defaultValue: "http://maps.google.com/maps?f=q&q="
++            }
++
++            MouseArea {
++                anchors.fill: parent
++                onClicked: {
++                    var addr = locationText.text
++                    Qt.openUrlExternally(showLocationUrl.value + addr)
++                }
++            }
++
++            // <== patch calendar-show-location
+         }
+ 
+         Loader {
