@@ -19,6 +19,27 @@ Column {
         attendeeView.model = attendeeList
     }
 
+    // ==> patch calendar-show-location
+    ConfigurationValue {
+        id: showLocationUrl
+        key: "/apps/patchmanager/show-event-location/url"
+        defaultValue: ["http://maps.google.com/maps?f=q&q=", ""]
+    }
+
+    ConfigurationValue {
+        id: showLocationName
+        key: "/apps/patchmanager/show-event-location/name"
+        defaultValue: ["maps.google.com", "copy to clipboard"]
+    }
+
+    SystemNotifications.Notification {
+        id: systemNote2
+
+        icon: "icon-lock-calendar"
+        isTransient: true
+    }
+    // <== patch calendar-show-location
+
     width: parent.width
     visible: root.event
     spacing: Theme.paddingMedium
@@ -155,7 +176,7 @@ Column {
         Item {
             visible: root.event && root.event.location !== ""
             width: parent.width - 2*Theme.horizontalPageMargin
-            height: Math.max(locationIcon.height, locationText.height)
+            height: locationIcon.height > locationText.height ? locationIcon.height : locationText.height
             x: Theme.horizontalPageMargin
 
             Image {
@@ -179,22 +200,93 @@ Column {
 
             // ==> patch calendar-show-location
 
-            ConfigurationValue {
-                id: showLocationUrl
-                key: "/apps/patchmanager/show-event-location/url"
-                defaultValue: "http://maps.google.com/maps?f=q&q="
-            }
-
             MouseArea {
                 anchors.fill: parent
+
                 onClicked: {
-                    var addr = locationText.text
-                    Qt.openUrlExternally(showLocationUrl.value + addr)
+                    var addr = locationText.text, query = showLocationUrl.value[0]
+                    if (showLocationMethods.visible) {
+                        showLocationMethods.visible = false
+                    } else {
+                        if (query === "") {
+                            Clipboard.text = locationText.text
+                            systemNote2.previewBody = qsTr("location copied to clipboard")
+                            systemNote2.publish()
+                        } else {
+                            Qt.openUrlExternally(query + addr)
+                        }
+                    }
+
+                }
+                onPressAndHold: {
+                    showLocationMethods.visible = !showLocationMethods.visible
                 }
             }
 
             // <== patch calendar-show-location
         }
+
+        // ==> patch calendar-show-location
+
+        ListModel {
+            id: showLocationModel
+            ListElement {
+                itemName: "name"
+                itemMethod: "method"
+            }
+        }
+
+        Component {
+            id: methodDelegate
+            ListItem {
+                id: mapItem
+                width: root.width
+                contentHeight: methodLabel.height
+                onClicked: {
+                    var i = showLocationMethods.indexAt(mouseX, y + mouseY), query, name
+                    name = showLocationModel.get(i).itemName
+                    query = showLocationModel.get(i).itemMethod
+                    console.log("opening " + name + " : " + locationText.text)
+                    showLocationMethods.visible = !showLocationMethods.visible
+
+                    if (query === "") { // copy to Clipboard
+                        Clipboard.text = locationText.text
+                        systemNote2.previewBody = qsTr("location copied to clipboard")
+                        systemNote2.publish()
+                    } else {
+                        Qt.openUrlExternally(query + locationText.text)
+                    }
+                }
+
+                Label {
+                    id: methodLabel
+                    color: Theme.secondaryColor
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    width: parent.width - 2*x
+                    x: Theme.horizontalPageMargin
+                    text: itemName
+                    font.bold: index == 0 ? true : false
+                }
+            }
+        }
+
+        SilicaListView {
+            id: showLocationMethods
+            //y: locationIcon.height > locationText.height ? locationIcon.height : locationText.height
+            width: parent.width - 3*Theme.horizontalPageMargin
+            //height: visible? 8*Theme.fontSizeMedium : 0
+            height: 8*Theme.fontSizeMedium
+            spacing: Theme.paddingMedium
+            visible: false
+            x: 2*Theme.horizontalPageMargin
+            model: showLocationModel
+
+            delegate: methodDelegate
+
+            VerticalScrollDecorator {}
+        }
+
+        // <== patch calendar-show-location
 
         Loader {
             active: event && event.rsvp
@@ -365,5 +457,20 @@ Column {
             targetUid: (root.event && root.event.calendarUid) ? root.event.calendarUid : ""
         }
     }
+
+    // ==> patch calendar-show-location
+    Component.onCompleted: {
+        if (showLocationUrl.value.length !== undefined) {
+            var i = 0
+            showLocationModel.clear()
+            while (i < showLocationUrl.value.length) {
+                showLocationModel.append({"itemName": showLocationName.value[i], "itemMethod": showLocationUrl.value[i]})
+                i++
+            }
+
+        }
+
+    }
+    // <== patch calendar-show-location
 }
 
