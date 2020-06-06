@@ -22,6 +22,29 @@ Page {
         return
     }
 
+    function modifyMethod(ind, url, name) {
+        var i = 0, urlList = [], labelList = []
+
+        while (i<mapMethodsView.count) {
+            if (i === ind) {
+                urlList.push(url)
+                labelList.push(name)
+                showMethodsList.set(ind, {"itemName": name, "itemMethod": url})
+            } else {
+                urlList.push(showMethodsList.get(i).itemMethod)
+                labelList.push(showMethodsList.get(i).itemName)
+            }
+
+            i++
+        }
+        showLocationName.value = labelList
+        showLocationUrl.value = urlList
+        showLocationUrl.sync()
+        showLocationName.sync()
+
+        return
+    }
+
     function newMethod(url, name) {
         addMapMethod(url, name)
         addToMethodsView(url, name)
@@ -48,8 +71,8 @@ Page {
         var i = 0, urlList = [], labelList = []
 
         while (i<mapMethodsView.count) {
-            urlList.push(showMethodsList.get(i).itemMethod)//mapMethodsView.model.get(i).itemMethod)
-            labelList.push(showMethodsList.get(i).itemName)//mapMethodsView.model.get(i).itemName)
+            urlList.push(showMethodsList.get(i).itemMethod)
+            labelList.push(showMethodsList.get(i).itemName)
             i++
         }
         showLocationName.value = labelList
@@ -98,18 +121,6 @@ Page {
 
         }
 
-        /*
-        PushUpMenu {
-            MenuItem {
-                text: enabled ? qsTr("add new method") : qsTr("give a label")
-                enabled: (mapLabel.text === "" ) ? false : true
-                onClicked: {
-                    newMethod(mapUrl.text, mapLabel.text)
-                }
-            }
-
-        } // */
-
         Column {
             id: column
             width: parent.width
@@ -124,7 +135,9 @@ Page {
             }
 
             Label {
-                text: qsTr("When the location of a calendar event is tapped, opens the browser and searches for the address by default.")
+                text: qsTr("When the location of a calendar event is tapped, " +
+                           "opens the browser and searches for the address by default.\n" +
+                           "Adds dBus 'my.location.service' for sharing the address with other apps.")
                 color: Theme.highlightColor
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                 width: parent.width - 2*x
@@ -152,78 +165,7 @@ Page {
                            " Qt.openUrlExternally(url + location). If the url is empty," +
                            " copies the location to the clipboard. The first scheme on the" +
                            " list is used by default, when the location is tapped. Press and" +
-                           " hold the event location to choose from the whole list:")
-            }
-
-            SilicaListView {
-                id: mapMethodsView
-                width: parent.width
-                height: 8*Theme.fontSizeMedium
-                clip: true
-                highlight: Rectangle {
-                    color: Theme.highlightBackgroundColor
-                    height: mapMethodsView.currentIndex >= 0 ?
-                                mapMethodsView.currentItem.height : Theme.fontSizeMedium
-                    radius: Theme.paddingMedium
-                    border.color: Theme.highlightColor
-                    border.width: 2
-                    opacity: Theme.highlightBackgroundOpacity
-                }
-
-                highlightFollowsCurrentItem: true
-
-                model: ListModel {
-                    id: showMethodsList
-                    // ListElement { itemName: "", itemMethod: "" }
-                }
-
-                delegate: ListItem {
-                    id: mapItem
-                    propagateComposedEvents: true
-                    _backgroundColor: "transparent" //does not flash - listviews highlight is enough
-                    ListView.onRemove: animateRemoval(mapItem)
-                    onClicked: {
-                        mapUrl.text = itemMethod
-                        mapLabel.text = itemName
-                        mapMethodsView.currentIndex = mapMethodsView.indexAt(mouseX, y + mouseY)
-                    }
-                    onPressAndHold: {
-                        mapMethodsView.currentIndex = mapMethodsView.indexAt(mouseX, y + mouseY)
-                    }
-
-                    menu: ContextMenu {
-                        MenuItem {
-                            text: qsTr("set as the default action")
-                            onClicked: {
-                                showMethodsList.move(mapMethodsView.currentIndex, 0, 1)//mapMethodsView.model.move(mapMethodsView.currentIndex-1, 0, 1)
-                                saveMethods()
-                            }
-                        }
-                        MenuItem {
-                            text: qsTr("delete")
-                            onClicked: {
-                                var i=mapMethodsView.currentIndex, lbl=showMethodsList.get(i).itemName
-                                console.log("poista " + i)
-                                remorseAction(qsTr("deleting"), function() {
-                                    showMethodsList.remove(i)//mapMethodsView.model.remove(i)
-                                    saveMethods()
-                                    console.log("poisti " + i)
-                                })
-                            }
-                        }
-                    }
-
-                    Label {
-                        color: Theme.secondaryColor
-                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                        width: parent.width - 2*x
-                        x: Theme.horizontalPageMargin
-                        text: itemName
-                        font.bold: index == 0 ? true : false
-                    }
-                }
-
-                VerticalScrollDecorator {}
+                           " hold the event location to choose from the whole list.")
             }
 
             Row {
@@ -286,6 +228,98 @@ Page {
                 }
             }
 
+            SilicaListView {
+                id: mapMethodsView
+                width: parent.width
+                height: 8*Theme.fontSizeMedium
+                clip: true
+                highlight: Rectangle {
+                    color: Theme.highlightBackgroundColor
+                    height: mapMethodsView.currentIndex >= 0 ?
+                                mapMethodsView.currentItem.height : Theme.fontSizeMedium
+                    radius: Theme.paddingMedium
+                    border.color: Theme.highlightColor
+                    border.width: 2
+                    opacity: Theme.highlightBackgroundOpacity
+                }
+
+                highlightFollowsCurrentItem: true
+
+                model: ListModel {
+                    id: showMethodsList
+                    // ListElement { itemName: "", itemMethod: "" }
+                }
+
+                delegate: ListItem {
+                    id: mapItem
+                    propagateComposedEvents: true
+                    _backgroundColor: "transparent" //does not flash - listviews highlight is enough
+                    ListView.onRemove: animateRemoval(mapItem)
+                    onClicked: {
+                        mapUrl.text = itemMethod
+                        mapLabel.text = itemName
+                        mapMethodsView.currentIndex = mapMethodsView.indexAt(mouseX, y + mouseY)
+                    }
+                    onPressAndHold: {
+                        mapMethodsView.currentIndex = mapMethodsView.indexAt(mouseX, y + mouseY)
+                    }
+
+                    menu: ContextMenu {
+                        MenuItem {
+                            text: qsTr("set as the default action")
+                            onClicked: {
+                                showMethodsList.move(mapMethodsView.currentIndex, 0, 1)//mapMethodsView.model.move(mapMethodsView.currentIndex-1, 0, 1)
+                                saveMethods()
+                            }
+                        }
+                        MenuItem {
+                            text: qsTr("delete")
+                            onClicked: {
+                                var i=mapMethodsView.currentIndex
+                                remorseAction(qsTr("deleting"), function() {
+                                    showMethodsList.remove(i)
+                                    saveMethods()
+                                    return
+                                })
+                            }
+                        }
+                        MenuItem {
+                            text: qsTr("modify")
+                            onClicked: {
+                                var i = mapMethodsView.currentIndex, lbl = mapLabel.text, url = mapUrl.text
+                                remorseAction(qsTr("modifying" + " " + i + " " + lbl + " " + url), function() {
+                                    modifyMethod(i, url, lbl)
+                                    return
+                                })
+                            }
+                        }
+                    }
+
+                    Label {
+                        color: Theme.secondaryColor
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                        width: parent.width - 2*x
+                        x: Theme.horizontalPageMargin
+                        text: itemName
+                        font.italic: index == 0 ? true : false
+                    }
+                }
+
+                VerticalScrollDecorator {}
+            }
+
+            Label {
+                text: qsTr("To open the address in some map-app, x-scheme-handlers can be used. \n" +
+                           "I created a handler for 'bus://'-scheme to open JollaOpas. " +
+                           "For some reason, 'bus://from=' does nothing, " +
+                           "but bus://_?t opens JollaOpas. " +
+                           "I.e. '?' seems to be required by Qt.openUrlExternally().")
+                color: Theme.highlightColor
+                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                width: parent.width - 2*x
+                x: Theme.horizontalPageMargin
+            }
+
             TextArea {
                 text: qsTr("%1 claims to be incompatible with the native browser, and %2 doesn't show the map.").arg("wego.here.com/directions/drive/").arg("www.bing.com/maps?where1=")
                 color: Theme.secondaryColor
@@ -294,15 +328,6 @@ Page {
                 //x: Theme.horizontalPageMargin
                 readOnly: true
                 focusOnClick: true
-            }
-
-            Label {
-                text: qsTr("To open the address in some map-app, x-scheme-handlers can be used."
-                           + " But they are out of the scope of this patch.")
-                color: Theme.highlightColor
-                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                width: parent.width - 2*x
-                x: Theme.horizontalPageMargin
             }
 
         }

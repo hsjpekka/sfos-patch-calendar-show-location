@@ -1,16 +1,17 @@
 --- /usr/lib/qt5/qml/Sailfish/Calendar/CalendarEventView.qml
 +++ /usr/lib/qt5/qml/Sailfish/Calendar/CalendarEventView.qml
-@@ -3,7 +3,8 @@
+@@ -3,7 +3,9 @@
  import Sailfish.TextLinking 1.0
  import org.nemomobile.calendar 1.0
  import Sailfish.Calendar 1.0 as Calendar
 -import org.nemomobile.notifications 1.0 as SystemNotifications
 +import org.nemomobile.notifications 1.0 as SystemNotifications
 +import Nemo.Configuration 1.0 // patch calendar-show-location
++import Nemo.DBus 2.0 // patch calendar-show-location
  
  Column {
      id: root
-@@ -18,6 +19,27 @@
+@@ -18,6 +20,51 @@
          attendeeView.model = attendeeList
      }
  
@@ -28,26 +29,69 @@
 +    }
 +
 +    SystemNotifications.Notification {
-+        id: systemNote2
-+
++        id: notifier
 +        icon: "icon-lock-calendar"
 +        isTransient: true
++    }
++
++    DBusAdaptor {
++        id: dataBus
++        service: "my.location.service"
++        iface: "my.location.interface"
++        path: "/my/location/service"
++        bus: DBus.SessionBus
++        xml:  '<interface name="my.location.interface">\n' +
++              '    <method name="getDestinationAddress" />\n' +
++              '    <signal name="destinationChanged" />\n' +
++              '    <property name="destAddress" type="s" access="readwrite" />\n' +
++              '  </interface>\n'
++
++        property string destAddress: ""
++
++        function getDestinationAddress() {
++            return destAddress;
++        }        
++    }
++
++    function notifyAddressChange(addr) {
++        dataBus.destAddress = addr
++        dataBus.emitSignal("destinationChanged", [addr])
++        return
 +    }
 +    // <== patch calendar-show-location
 +
      width: parent.width
      visible: root.event
      spacing: Theme.paddingMedium
-@@ -154,7 +176,7 @@
-         Item {
+@@ -151,10 +198,19 @@
+         width: parent.width
+         spacing: Theme.paddingMedium
+ 
+-        Item {
++        // ==> patch calendar-show-location
++        ListModel {
++            id: showLocationModel
++            ListElement {
++                itemName: "shown name"
++                itemMethod: "related url"
++            }
++        }
++
++        ListItem {
              visible: root.event && root.event.location !== ""
              width: parent.width - 2*Theme.horizontalPageMargin
 -            height: Math.max(locationIcon.height, locationText.height)
-+            height: locationIcon.height > locationText.height ? locationIcon.height : locationText.height
++            contentHeight: locationIcon.height > locationText.height ? locationIcon.height : locationText.height
              x: Theme.horizontalPageMargin
  
              Image {
-@@ -170,12 +192,101 @@
+@@ -164,17 +220,50 @@
+ 
+             Label {
+                 id: locationText
+-
+                 width: parent.width - locationIcon.width
+                 height: contentHeight
                  x: locationIcon.width
                  anchors.top: lineCount > 1 ? parent.top : undefined
                  anchors.verticalCenter: lineCount > 1 ? undefined : locationIcon.verticalCenter
@@ -57,107 +101,51 @@
 +                //font.pixelSize: Theme.fontSizeSmall // ==> patch calendar-show-location
                  wrapMode: Text.WordWrap
                  text: root.event ? root.event.location : ""
-             }
--        }
+-            }
++            }
 +
-+            // ==> patch calendar-show-location
++            onClicked: {
++                var addr = locationText.text, query = showLocationUrl.value[0]
++                notifyAddressChange(addr)
 +
-+            MouseArea {
-+                anchors.fill: parent
-+
-+                onClicked: {
-+                    var addr = locationText.text, query = showLocationUrl.value[0]
-+                    if (showLocationMethods.visible) {
-+                        showLocationMethods.visible = false
-+                    } else {
-+                        if (query === "") {
-+                            Clipboard.text = locationText.text
-+                            systemNote2.previewBody = qsTr("location copied to clipboard")
-+                            systemNote2.publish()
-+                        } else {
-+                            Qt.openUrlExternally(query + addr)
++                if (query === "") {
++                    Clipboard.text = locationText.text
++                    notifier.previewBody = qsTr("location copied to clipboard")
++                    notifier.publish()
++                } else {
++                    Qt.openUrlExternally(query + encodeUriComponent(addr))
++                }
++            }
++            menu: ContextMenu {
++                Repeater {
++                    model: showLocationModel
++                    delegate: MenuItem {
++                        property string url: itemMethod
++                        text: itemName
++                        font.italic: index === 0
++                        onClicked: {
++                            notifyAddressChange(locationText.text)
++                            if (url === "") { // copy to Clipboard
++                                Clipboard.text = locationText.text
++                                notifier.previewBody = qsTr("location copied to clipboard")
++                                notifier.publish()
++                            } else {
++                                Qt.openUrlExternally(url + locationText.text)
++                            }
 +                        }
 +                    }
-+
-+                }
-+                onPressAndHold: {
-+                    showLocationMethods.visible = !showLocationMethods.visible
 +                }
 +            }
-+
 +            // <== patch calendar-show-location
-+        }
-+
-+        // ==> patch calendar-show-location
-+
-+        ListModel {
-+            id: showLocationModel
-+            ListElement {
-+                itemName: "name"
-+                itemMethod: "method"
-+            }
-+        }
-+
-+        Component {
-+            id: methodDelegate
-+            ListItem {
-+                id: mapItem
-+                width: root.width
-+                contentHeight: methodLabel.height
-+                onClicked: {
-+                    var i = showLocationMethods.indexAt(mouseX, y + mouseY), query, name
-+                    name = showLocationModel.get(i).itemName
-+                    query = showLocationModel.get(i).itemMethod
-+                    console.log("opening " + name + " : " + locationText.text)
-+                    showLocationMethods.visible = !showLocationMethods.visible
-+
-+                    if (query === "") { // copy to Clipboard
-+                        Clipboard.text = locationText.text
-+                        systemNote2.previewBody = qsTr("location copied to clipboard")
-+                        systemNote2.publish()
-+                    } else {
-+                        Qt.openUrlExternally(query + locationText.text)
-+                    }
-+                }
-+
-+                Label {
-+                    id: methodLabel
-+                    color: Theme.secondaryColor
-+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-+                    width: parent.width - 2*x
-+                    x: Theme.horizontalPageMargin
-+                    text: itemName
-+                    font.bold: index == 0 ? true : false
-+                }
-+            }
-+        }
-+
-+        SilicaListView {
-+            id: showLocationMethods
-+            //y: locationIcon.height > locationText.height ? locationIcon.height : locationText.height
-+            width: parent.width - 3*Theme.horizontalPageMargin
-+            //height: visible? 8*Theme.fontSizeMedium : 0
-+            height: 8*Theme.fontSizeMedium
-+            spacing: Theme.paddingMedium
-+            visible: false
-+            x: 2*Theme.horizontalPageMargin
-+            model: showLocationModel
-+
-+            delegate: methodDelegate
-+
-+            VerticalScrollDecorator {}
-+        }
-+
-+        // <== patch calendar-show-location
+         }
  
          Loader {
-             active: event && event.rsvp
-@@ -345,6 +456,21 @@
-             id: query
+@@ -346,5 +435,19 @@
              targetUid: (root.event && root.event.calendarUid) ? root.event.calendarUid : ""
          }
--    }
-+    }
+     }
+-}
+-
 +
 +    // ==> patch calendar-show-location
 +    Component.onCompleted: {
@@ -168,10 +156,9 @@
 +                showLocationModel.append({"itemName": showLocationName.value[i], "itemMethod": showLocationUrl.value[i]})
 +                i++
 +            }
-+
++        } else {
++            showLocationModel.append({"itemName": showLocationName.value, "itemMethod": showLocationUrl.value})
 +        }
-+
 +    }
 +    // <== patch calendar-show-location
- }
- 
++}
