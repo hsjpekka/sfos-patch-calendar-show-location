@@ -136,8 +136,7 @@ Page {
 
             Label {
                 text: qsTr("When the location of a calendar event is tapped, " +
-                           "opens the browser and searches for the address by default.\n" +
-                           "Adds dBus 'my.location.service' for sharing the address with other apps.")
+                           "opens the browser and searches for the address by default.")
                 color: Theme.highlightColor
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                 width: parent.width - 2*x
@@ -247,7 +246,6 @@ Page {
 
                 model: ListModel {
                     id: showMethodsList
-                    // ListElement { itemName: "", itemMethod: "" }
                 }
 
                 delegate: ListItem {
@@ -320,14 +318,12 @@ Page {
                 x: Theme.horizontalPageMargin
             }
 
-            TextArea {
-                text: qsTr("%1 claims to be incompatible with the native browser, and %2 doesn't show the map.").arg("wego.here.com/directions/drive/").arg("www.bing.com/maps?where1=")
-                color: Theme.secondaryColor
+            LinkedLabel {
+                plainText: qsTr("%1 claims to be incompatible with the native browser, and %2 doesn't show the map.").arg("wego.here.com/directions/drive/").arg("www.bing.com/maps?where1=")
+                color: Theme.highlightColor
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                 width: parent.width - 2*x
-                //x: Theme.horizontalPageMargin
-                readOnly: true
-                focusOnClick: true
+                x: Theme.horizontalPageMargin
             }
 
         }
@@ -343,8 +339,6 @@ Page {
             var i=0
             showMethodsList.clear()//mapMethodsView.model.clear()
             while (i<showLocationUrl.value.length) {
-                console.log("lisää " + i + "/" + (showLocationUrl.value.length-1) + " : "
-                            + showLocationUrl.value[i] + " - " + showLocationName.value[i])
                 addToMethodsView(showLocationUrl.value[i], showLocationName.value[i])
                 i++
             }
