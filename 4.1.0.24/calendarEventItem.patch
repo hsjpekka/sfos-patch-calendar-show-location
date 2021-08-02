@@ -1,0 +1,146 @@
+
+
+diff --git a/C:/Users/pekka/koodit/patchmanager/calendar-show-location/4.1.0.24/CalendarEventView.qml b/C:/Users/pekka/koodit/patchmanager/calendar-show-location/4.1.0.24/modified/CalendarEventView_mod.qml
+index .. 100644
+--- a/C:/Users/pekka/koodit/patchmanager/calendar-show-location/4.1.0.24/CalendarEventView.qml
++++ b/C:/Users/pekka/koodit/patchmanager/calendar-show-location/4.1.0.24/modified/CalendarEventView_mod.qml
+@@ -10,7 +10,8 @@
+ import Sailfish.TextLinking 1.0
+ import org.nemomobile.calendar 1.0
+ import Sailfish.Calendar 1.0 as Calendar
+-import org.nemomobile.notifications 1.0 as SystemNotifications
++import org.nemomobile.notifications 1.0 as SystemNotifications
++import Nemo.Configuration 1.0 // patch calendar-show-location
+ 
+ Column {
+     id: root
+@@ -173,11 +174,72 @@
+         width: parent.width
+         spacing: Theme.paddingMedium
+ 
+-        Item {
+-            visible: root.event && root.event.location !== ""
+-            width: parent.width - 2*Theme.horizontalPageMargin
+-            height: Math.max(locationIcon.height, locationText.height)
+-            x: Theme.horizontalPageMargin
++        // ==> patch calendar-show-location
++        ListModel {
++            id: showLocationModel
++            ListElement {
++                itemName: "shown name"
++                itemMethod: "related url"
++            }
++        }
++
++        ListItem {
++            id: addressItem
++            visible: root.event && root.event.location !== ""
++            width: parent.width - 2*Theme.horizontalPageMargin
++            contentHeight: locationIcon.height > locationText.height ?
++                               locationIcon.height : locationText.height
++            //height: Math.max(locationIcon.height, locationText.height)
++            x: Theme.horizontalPageMargin
++
++            onClicked: {
++                var qry, name
++
++                if (showLocationUrl.value.length !== undefined) {
++                    qry = showLocationUrl.value[0]
++                    name = showLocationName.value[0]
++                } else {
++                    qry = showLocationUrl.value
++                    name = showLocationName
++                }
++
++                sendAddress(qry, name)
++            }
++            menu: ContextMenu {
++                Repeater {
++                    model: showLocationModel
++                    delegate: MenuItem {
++                        property string url: itemMethod
++                        text: itemName
++                        font.italic: index === 0
++                        onClicked: {
++                            addressItem.sendAddress(url, text)
++                        }
++                    }
++                }
++            }
++
++            function sendAddress(query, name) {
++                var addr = locationText.text, arrivalTime = "", yyyymmddhhmm//, query = showLocationUrl.value[0]
++                yyyymmddhhmm = startDate.eventDate.getFullYear() + "-" +
++                startDate.eventDate.getMonth() + "-" + startDate.eventDate.getDate() +
++                    "-" + startDate.eventDate.getHours() + "-" +
++                    startDate.eventDate.getMinutes()
++                if (query.indexOf("bus") === 0){
++                    arrivalTime = "\&time=" + yyyymmddhhmm
++                }
++
++                Clipboard.text = locationText.text
++                if (query === "") {
++                    notifier.previewBody = qsTr("location copied to clipboard")
++                    notifier.publish()
++                } else {
++                    notifier.previewBody = qsTr("opening %1 & copied to clipboard").arg(name)
++                    notifier.publish()
++                    Qt.openUrlExternally("" + query + encodeURIComponent(addr) + arrivalTime)
++                }
++                return
++            }
+ 
+             Image {
+                 id: locationIcon
+@@ -192,8 +254,8 @@
+                 x: locationIcon.width + Theme.paddingMedium
+                 anchors.top: lineCount > 1 ? parent.top : undefined
+                 anchors.verticalCenter: lineCount > 1 ? undefined : locationIcon.verticalCenter
+-                color: Theme.highlightColor
+-                font.pixelSize: Theme.fontSizeSmall
++                color: Theme.primaryColor
++                // <== patch calendar-show-location // font.pixelSize: Theme.fontSizeSmall
+                 wrapMode: Text.Wrap
+                 text: root.event ? root.event.location : ""
+             }
+@@ -396,6 +458,39 @@
+         visible: syncFailure != CalendarEvent.NoSyncFailure
+         withDetails: true
+         color: Theme.highlightColor
+-    }
++    }
++
++    // ==> patch calendar-show-location
++    ConfigurationValue {
++        id: showLocationUrl
++        key: "/apps/patchmanager/show-event-location/url"
++        defaultValue: ["http://maps.google.com/maps?f=q&q=", ""]
++    }
++
++    ConfigurationValue {
++        id: showLocationName
++        key: "/apps/patchmanager/show-event-location/name"
++        defaultValue: ["maps.google.com", "copy to clipboard"]
++    }
++
++    SystemNotifications.Notification {
++        id: notifier
++        icon: "icon-lock-calendar"
++        isTransient: true
++    }
++
++    Component.onCompleted: {
++        if (showLocationUrl.value.length !== undefined) {
++            var i = 0
++            showLocationModel.clear()
++            while (i < showLocationUrl.value.length) {
++                showLocationModel.append({"itemName": showLocationName.value[i], "itemMethod": showLocationUrl.value[i]})
++                i++
++            }
++        } else {
++            showLocationModel.append({"itemName": showLocationName.value, "itemMethod": showLocationUrl.value})
++        }
++    }
++    // <== patch calendar-show-location
+ }
+ 
