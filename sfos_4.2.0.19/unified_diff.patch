@@ -1,9 +1,5 @@
-
-
-diff --git a/C:/Users/pekka/koodit/patchmanager/calendar-show-location/4.1.0.24/CalendarEventView.qml b/C:/Users/pekka/koodit/patchmanager/calendar-show-location/4.1.0.24/modified/CalendarEventView_mod.qml
-index .. 100644
---- a/C:/Users/pekka/koodit/patchmanager/calendar-show-location/4.1.0.24/CalendarEventView.qml
-+++ b/C:/Users/pekka/koodit/patchmanager/calendar-show-location/4.1.0.24/modified/CalendarEventView_mod.qml
+--- /usr/lib/qt5/qml/Sailfish/Calendar/CalendarEventView.qml
++++ /usr/lib/qt5/qml/Sailfish/Calendar/CalendarEventView.qml
 @@ -10,7 +10,8 @@
  import Sailfish.TextLinking 1.0
  import org.nemomobile.calendar 1.0
@@ -14,15 +10,11 @@ index .. 100644
  
  Column {
      id: root
-@@ -173,11 +174,72 @@
+@@ -173,12 +174,74 @@
          width: parent.width
          spacing: Theme.paddingMedium
  
 -        Item {
--            visible: root.event && root.event.location !== ""
--            width: parent.width - 2*Theme.horizontalPageMargin
--            height: Math.max(locationIcon.height, locationText.height)
--            x: Theme.horizontalPageMargin
 +        // ==> patch calendar-show-location
 +        ListModel {
 +            id: showLocationModel
@@ -34,13 +26,13 @@ index .. 100644
 +
 +        ListItem {
 +            id: addressItem
-+            visible: root.event && root.event.location !== ""
-+            width: parent.width - 2*Theme.horizontalPageMargin
+             visible: root.event && root.event.location !== ""
+             width: parent.width - 2*Theme.horizontalPageMargin
+-            height: Math.max(locationIcon.height, locationText.height)
 +            contentHeight: locationIcon.height > locationText.height ?
 +                               locationIcon.height : locationText.height
-+            //height: Math.max(locationIcon.height, locationText.height)
-+            x: Theme.horizontalPageMargin
-+
+             x: Theme.horizontalPageMargin
+ 
 +            onClicked: {
 +                var qry, name
 +
@@ -89,21 +81,22 @@ index .. 100644
 +                }
 +                return
 +            }
- 
++
++            // <== patch calendar-show-location
++
              Image {
                  id: locationIcon
-@@ -192,8 +254,8 @@
+                 source: "image://theme/icon-m-location"
+@@ -192,7 +255,7 @@
                  x: locationIcon.width + Theme.paddingMedium
                  anchors.top: lineCount > 1 ? parent.top : undefined
                  anchors.verticalCenter: lineCount > 1 ? undefined : locationIcon.verticalCenter
 -                color: Theme.highlightColor
--                font.pixelSize: Theme.fontSizeSmall
-+                color: Theme.primaryColor
-+                // <== patch calendar-show-location // font.pixelSize: Theme.fontSizeSmall
++                color: Theme.primaryColor // patch calendar-show-location
+                 font.pixelSize: Theme.fontSizeSmall
                  wrapMode: Text.Wrap
                  text: root.event ? root.event.location : ""
-             }
-@@ -396,6 +458,39 @@
+@@ -392,6 +455,39 @@
          visible: syncFailure != CalendarEvent.NoSyncFailure
          withDetails: true
          color: Theme.highlightColor
@@ -143,4 +136,3 @@ index .. 100644
 +    }
 +    // <== patch calendar-show-location
  }
- 
